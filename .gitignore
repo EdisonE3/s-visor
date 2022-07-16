@@ -1,0 +1,5 @@
+tags
+build/
+*.dump
+scripts/Image_page
+include/common/image_md5_data.h
