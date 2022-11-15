@@ -3,3 +3,7 @@ build/
 *.dump
 scripts/Image_page
 include/common/image_md5_data.h
+cmake-build-debug/
+.idea/
+.vscode/
+.project
