@@ -56,13 +56,13 @@ struct s_visor_vm *get_vm_by_id(int vm_id) {
 
 static inline void save_current_el1_sys_regs(struct s_visor_vcpu *state) {
     unsigned long sys_reg_kvm;
-    asm volatile("mrs %0, spsr_el12 \n":"=r"(sys_reg_kvm));
+    asm volatile("mrs %0, spsr_el1 \n":"=r"(sys_reg_kvm));
     state->current_vcpu_ctx.sys_regs.spsr = sys_reg_kvm; 
     
-    asm volatile("mrs %0, elr_el12 \n":"=r"(sys_reg_kvm));
+    asm volatile("mrs %0, elr_el1 \n":"=r"(sys_reg_kvm));
     state->current_vcpu_ctx.sys_regs.elr = sys_reg_kvm; 
     
-    asm volatile("mrs %0, sctlr_el12 \n":"=r"(sys_reg_kvm));
+    asm volatile("mrs %0, sctlr_el1 \n":"=r"(sys_reg_kvm));
     state->current_vcpu_ctx.sys_regs.sctlr = sys_reg_kvm; 
     
     asm volatile("mrs %0, sp_el1 \n":"=r"(sys_reg_kvm));
@@ -71,25 +71,25 @@ static inline void save_current_el1_sys_regs(struct s_visor_vcpu *state) {
     asm volatile("mrs %0, sp_el0 \n":"=r"(sys_reg_kvm));
     state->current_vcpu_ctx.sys_regs.sp_el0 = sys_reg_kvm; 
     
-    asm volatile("mrs %0, esr_el12 \n":"=r"(sys_reg_kvm));
+    asm volatile("mrs %0, esr_el1 \n":"=r"(sys_reg_kvm));
     state->current_vcpu_ctx.sys_regs.esr = sys_reg_kvm;
     
-    asm volatile("mrs %0, vbar_el12 \n":"=r"(sys_reg_kvm));
+    asm volatile("mrs %0, vbar_el1 \n":"=r"(sys_reg_kvm));
     state->current_vcpu_ctx.sys_regs.vbar = sys_reg_kvm; 
     
-    asm volatile("mrs %0, ttbr0_el12 \n":"=r"(sys_reg_kvm));
+    asm volatile("mrs %0, ttbr0_el1 \n":"=r"(sys_reg_kvm));
     state->current_vcpu_ctx.sys_regs.ttbr0 = sys_reg_kvm; 
     
-    asm volatile("mrs %0, ttbr1_el12 \n":"=r"(sys_reg_kvm));
+    asm volatile("mrs %0, ttbr1_el1 \n":"=r"(sys_reg_kvm));
     state->current_vcpu_ctx.sys_regs.ttbr1 = sys_reg_kvm; 
     
-    asm volatile("mrs %0, mair_el12 \n":"=r"(sys_reg_kvm));
+    asm volatile("mrs %0, mair_el1 \n":"=r"(sys_reg_kvm));
     state->current_vcpu_ctx.sys_regs.mair = sys_reg_kvm; 
     
-    asm volatile("mrs %0, amair_el12 \n":"=r"(sys_reg_kvm));
+    asm volatile("mrs %0, amair_el1 \n":"=r"(sys_reg_kvm));
     state->current_vcpu_ctx.sys_regs.amair = sys_reg_kvm; 
     
-    asm volatile("mrs %0, tcr_el12 \n":"=r"(sys_reg_kvm));
+    asm volatile("mrs %0, tcr_el1 \n":"=r"(sys_reg_kvm));
     state->current_vcpu_ctx.sys_regs.tcr = sys_reg_kvm; 
     
     asm volatile("mrs %0, tpidr_el1 \n":"=r"(sys_reg_kvm));
@@ -110,25 +110,25 @@ static inline void save_current_el1_sys_regs(struct s_visor_vcpu *state) {
     asm volatile("mrs %0, csselr_el1 \n":"=r"(sys_reg_kvm));
     state->current_vcpu_ctx.sys_regs.csselr= sys_reg_kvm; 
 
-    asm volatile("mrs %0, cpacr_el12 \n":"=r"(sys_reg_kvm));
+    asm volatile("mrs %0, cpacr_el1 \n":"=r"(sys_reg_kvm));
     state->current_vcpu_ctx.sys_regs.cpacr = sys_reg_kvm; 
 
-    asm volatile("mrs %0, afsr0_el12 \n":"=r"(sys_reg_kvm));
+    asm volatile("mrs %0, afsr0_el1 \n":"=r"(sys_reg_kvm));
     state->current_vcpu_ctx.sys_regs.afsr0 = sys_reg_kvm; 
 
-    asm volatile("mrs %0, afsr1_el12 \n":"=r"(sys_reg_kvm));
+    asm volatile("mrs %0, afsr1_el1 \n":"=r"(sys_reg_kvm));
     state->current_vcpu_ctx.sys_regs.afsr1 = sys_reg_kvm; 
 
-    asm volatile("mrs %0, far_el12 \n":"=r"(sys_reg_kvm));
+    asm volatile("mrs %0, far_el1 \n":"=r"(sys_reg_kvm));
     state->current_vcpu_ctx.sys_regs.far = sys_reg_kvm; 
 
-    asm volatile("mrs %0, cntkctl_el12 \n":"=r"(sys_reg_kvm));
+    asm volatile("mrs %0, cntkctl_el1 \n":"=r"(sys_reg_kvm));
     state->current_vcpu_ctx.sys_regs.cntkctl = sys_reg_kvm; 
 
     asm volatile("mrs %0, par_el1 \n":"=r"(sys_reg_kvm));
     state->current_vcpu_ctx.sys_regs.par = sys_reg_kvm; 
 
-    asm volatile("mrs %0, contextidr_el12 \n":"=r"(sys_reg_kvm));
+    asm volatile("mrs %0, contextidr_el1 \n":"=r"(sys_reg_kvm));
     state->current_vcpu_ctx.sys_regs.contextidr = sys_reg_kvm; 
 }
 
@@ -161,27 +161,27 @@ static void check_vm_state(struct s_visor_vcpu *state) {
                 (esr >> 17) & 0x7);
         switch (sys_reg_no) {
             case sys_reg(3, 0, 1, 0, 0):
-                asm volatile("mrs %0, sctlr_el12 \n":"=r"(sys_reg_kvm));
+                asm volatile("mrs %0, sctlr_el1 \n":"=r"(sys_reg_kvm));
                 state->current_vcpu_ctx.sys_regs.sctlr = sys_reg_kvm; 
                 break;
             case sys_reg(3, 0, 2, 0, 0):
-                asm volatile("mrs %0, ttbr0_el12 \n":"=r"(sys_reg_kvm));
+                asm volatile("mrs %0, ttbr0_el1 \n":"=r"(sys_reg_kvm));
                 state->current_vcpu_ctx.sys_regs.ttbr0 = sys_reg_kvm; 
                 break;
             case sys_reg(3, 0, 2, 0, 1):
-                asm volatile("mrs %0, ttbr1_el12 \n":"=r"(sys_reg_kvm));
+                asm volatile("mrs %0, ttbr1_el1 \n":"=r"(sys_reg_kvm));
                 state->current_vcpu_ctx.sys_regs.ttbr1 = sys_reg_kvm; 
                 break;
             case sys_reg(3, 0, 2, 0, 2):
-                asm volatile("mrs %0, tcr_el12 \n":"=r"(sys_reg_kvm));
+                asm volatile("mrs %0, tcr_el1 \n":"=r"(sys_reg_kvm));
                 state->current_vcpu_ctx.sys_regs.tcr = sys_reg_kvm; 
                 break;
             case sys_reg(3, 0, 10, 2, 0):
-                asm volatile("mrs %0, mair_el12 \n":"=r"(sys_reg_kvm));
+                asm volatile("mrs %0, mair_el1 \n":"=r"(sys_reg_kvm));
                 state->current_vcpu_ctx.sys_regs.mair = sys_reg_kvm; 
                 break;
             case sys_reg(3, 0, 10, 3, 0):
-                asm volatile("mrs %0, amair_el12 \n":"=r"(sys_reg_kvm));
+                asm volatile("mrs %0, amair_el1 \n":"=r"(sys_reg_kvm));
                 state->current_vcpu_ctx.sys_regs.amair = sys_reg_kvm; 
                 break;
             default:
@@ -362,6 +362,7 @@ static void sync_vttbr_to_vsttbr(struct s_visor_vm *target_vm, uint64_t vcpu_id)
 
 /* forward smc request to the corresponding VM */
 int forward_smc_to_vm() {
+    printf("forward_smc_to_vm\n");
     struct s_visor_vm *target_vm = NULL;
     struct s_visor_vcpu *target_vcpu = NULL; 
     struct s_visor_state *state = NULL;

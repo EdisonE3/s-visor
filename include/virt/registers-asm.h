@@ -105,29 +105,29 @@
    
     // save el1 regs
     get_guest_sys_regs \tmp0
-    mrs         \tmp1, spsr_el12 
+    mrs         \tmp1, spsr_el1 
     str	        \tmp1, [\tmp0, #SYS_SPSR_OFFSET]
-    mrs         \tmp1, elr_el12
+    mrs         \tmp1, elr_el1
     str	        \tmp1, [\tmp0, #SYS_ELR_OFFSET]
-    mrs         \tmp1, sctlr_el12
+    mrs         \tmp1, sctlr_el1
     str	        \tmp1, [\tmp0, #SYS_SCTLR_OFFSET]
     mrs         \tmp1, sp_el1
     str	        \tmp1, [\tmp0, #SYS_SP_OFFSET]
     mrs         \tmp1, sp_el0
     str	        \tmp1, [\tmp0, #SYS_SP_EL0_OFFSET]
-    mrs         \tmp1, esr_el12
+    mrs         \tmp1, esr_el1
     str	        \tmp1, [\tmp0, #SYS_ESR_OFFSET]
-    mrs         \tmp1, vbar_el12
+    mrs         \tmp1, vbar_el1
     str	        \tmp1, [\tmp0, #SYS_VBAR_OFFSET]
-    mrs         \tmp1, ttbr0_el12
+    mrs         \tmp1, ttbr0_el1
     str	        \tmp1, [\tmp0, #SYS_TTBR0_OFFSET]
-    mrs         \tmp1, ttbr1_el12
+    mrs         \tmp1, ttbr1_el1
     str	        \tmp1, [\tmp0, #SYS_TTBR1_OFFSET]
-    mrs         \tmp1, mair_el12
+    mrs         \tmp1, mair_el1
     str	        \tmp1, [\tmp0, #SYS_MAIR_OFFSET]
-    mrs         \tmp1, amair_el12
+    mrs         \tmp1, amair_el1
     str	        \tmp1, [\tmp0, #SYS_AMAIR_OFFSET]
-    mrs         \tmp1, tcr_el12
+    mrs         \tmp1, tcr_el1
     str	        \tmp1, [\tmp0, #SYS_TCR_OFFSET]
     mrs         \tmp1, tpidr_el1
     str	        \tmp1, [\tmp0, #SYS_TPIDR_OFFSET]
@@ -141,17 +141,17 @@
     str	        \tmp1, [\tmp0, #SYS_MPIDR_OFFSET]
     mrs         \tmp1, csselr_el1
     str	        \tmp1, [\tmp0, #SYS_CSSELR_OFFSET]
-    mrs         \tmp1, cpacr_el12
+    mrs         \tmp1, cpacr_el1
     str	        \tmp1, [\tmp0, #SYS_CPACR_OFFSET]
-    mrs         \tmp1, afsr0_el12
+    mrs         \tmp1, afsr0_el1
     str	        \tmp1, [\tmp0, #SYS_AFSR0_OFFSET]
-    mrs         \tmp1, afsr1_el12
+    mrs         \tmp1, afsr1_el1
     str	        \tmp1, [\tmp0, #SYS_AFSR1_OFFSET]
-    mrs         \tmp1, far_el12
+    mrs         \tmp1, far_el1
     str	        \tmp1, [\tmp0, #SYS_FAR_OFFSET]
-    mrs         \tmp1, contextidr_el12
+    mrs         \tmp1, contextidr_el1
     str	        \tmp1, [\tmp0, #SYS_CONTEXTIDR_OFFSET]
-    mrs         \tmp1, cntkctl_el12
+    mrs         \tmp1, cntkctl_el1
     str	        \tmp1, [\tmp0, #SYS_CNTKCTL_OFFSET]
     mrs         \tmp1, par_el1
     str	        \tmp1, [\tmp0, #SYS_PAR_OFFSET]
@@ -168,29 +168,29 @@
 .macro restore_guest_states tmp0, tmp1
     get_guest_sys_regs \tmp0
     ldr	        \tmp1, [\tmp0, #SYS_SPSR_OFFSET]
-    msr         spsr_el12, \tmp1 
+    msr         spsr_el1, \tmp1 
     ldr	        \tmp1, [\tmp0, #SYS_ELR_OFFSET]
-    msr         elr_el12, \tmp1
+    msr         elr_el1, \tmp1
     ldr	        \tmp1, [\tmp0, #SYS_SCTLR_OFFSET]
-    msr         sctlr_el12, \tmp1
+    msr         sctlr_el1, \tmp1
     ldr	        \tmp1, [\tmp0, #SYS_SP_OFFSET]
     msr         sp_el1, \tmp1
     ldr	        \tmp1, [\tmp0, #SYS_SP_EL0_OFFSET]
     msr         sp_el0, \tmp1
     ldr	        \tmp1, [\tmp0, #SYS_ESR_OFFSET]
-    msr         esr_el12, \tmp1
+    msr         esr_el1, \tmp1
     ldr	        \tmp1, [\tmp0, #SYS_VBAR_OFFSET]
-    msr         vbar_el12, \tmp1
+    msr         vbar_el1, \tmp1
     ldr	        \tmp1, [\tmp0, #SYS_TTBR0_OFFSET]
-    msr         ttbr0_el12, \tmp1
+    msr         ttbr0_el1, \tmp1
     ldr	        \tmp1, [\tmp0, #SYS_TTBR1_OFFSET]
-    msr         ttbr1_el12, \tmp1
+    msr         ttbr1_el1, \tmp1
     ldr	        \tmp1, [\tmp0, #SYS_MAIR_OFFSET]
-    msr         mair_el12, \tmp1
+    msr         mair_el1, \tmp1
     ldr	        \tmp1, [\tmp0, #SYS_AMAIR_OFFSET]
-    msr         amair_el12, \tmp1
+    msr         amair_el1, \tmp1
     ldr	        \tmp1, [\tmp0, #SYS_TCR_OFFSET]
-    msr         tcr_el12, \tmp1
+    msr         tcr_el1, \tmp1
     ldr	        \tmp1, [\tmp0, #SYS_TPIDR_OFFSET]
     msr         tpidr_el1, \tmp1
     ldr	        \tmp1, [\tmp0, #SYS_ACTLR_OFFSET]
@@ -204,17 +204,17 @@
     ldr	        \tmp1, [\tmp0, #SYS_CSSELR_OFFSET] // no CSSELR in el2
     msr         csselr_el1, \tmp1
     ldr	        \tmp1, [\tmp0, #SYS_CPACR_OFFSET]
-    msr         cpacr_el12, \tmp1
+    msr         cpacr_el1, \tmp1
     ldr	        \tmp1, [\tmp0, #SYS_AFSR0_OFFSET]
-    msr         afsr0_el12, \tmp1
+    msr         afsr0_el1, \tmp1
     ldr	        \tmp1, [\tmp0, #SYS_AFSR1_OFFSET]
-    msr         afsr1_el12, \tmp1
+    msr         afsr1_el1, \tmp1
     ldr	        \tmp1, [\tmp0, #SYS_FAR_OFFSET]
-    msr         far_el12, \tmp1
+    msr         far_el1, \tmp1
     ldr	        \tmp1, [\tmp0, #SYS_CONTEXTIDR_OFFSET] // banked register NS and S for aarch32
-    msr         contextidr_el12, \tmp1
+    msr         contextidr_el1, \tmp1
     ldr	        \tmp1, [\tmp0, #SYS_CNTKCTL_OFFSET]
-    msr         cntkctl_el12, \tmp1
+    msr         cntkctl_el1, \tmp1
     ldr	        \tmp1, [\tmp0, #SYS_PAR_OFFSET] // for all el, banked register NS and S
     msr         par_el1, \tmp1
     isb
