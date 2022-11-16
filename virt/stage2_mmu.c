@@ -692,7 +692,9 @@ pte_t translate_stage2_pt(ptp_t *s2ptp, paddr_t ipn) {
     uint32_t l1_index = (ipn >> l1_shift) & ((1UL << PAGE_ORDER) - 1);
    
     if (!s2ptp) return ret;
+    printf("s2ptp %llx\n", s2ptp);
     l1_entry = s2ptp->ent[l1_index];
+    printf("l1_entry %llx\n", l1_entry);
     if ((l1_entry.pte & ARM64_MMU_PTE_INVALID_MASK) == 0 ||
             (l1_entry.pte & PTE_DESCRIPTOR_MASK) != PTE_DESCRIPTOR_TABLE) {
         return ret;

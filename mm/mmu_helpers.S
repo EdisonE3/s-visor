@@ -169,7 +169,7 @@ BEGIN_FUNC(activate_mmu)
                  MAIR(0xff, MT_NORMAL)
     msr     mair_el2, x5
 
-    ldr     x10, =TCR_TxSZ(48) | TCR_IRGN_WBWA | TCR_ORGN_WBWA | TCR_TG0_4K | TCR_TG1_4K | TCR_ASID16 | TCR_SHARED
+    ldr     x10, =TCR_TxSZ(48) | TCR_IRGN_WBWA | TCR_ORGN_WBWA | TCR_TG0_4K | TCR_TG1_4K | TCR_ASID16 | TCR_SHARED | TCR_PS_64G
 
     mrs     x9, ID_AA64MMFR0_EL1
     bfi     x10, x9, #32, #3
