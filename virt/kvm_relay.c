@@ -303,10 +303,13 @@ void virtio_dispatcher(struct s_visor_state *state,
              */
             case 0x8: 
             case 0x88: {
-                // 初始化shadow s_vring
-                // s_vring还没初始化的时候大概会进入这里
+                printf("[VIRTIO] data address: %llx\n", (void*)data);
+
                 if (s_vring_init == 0) {
+                    printf("init s_vring MEM [0x9000000000, 0x940000000)\n");
+                    // 给shadow vring分配内存
                     shadow_bd_init();
+                    // 初始化hyp lock
                     init_big_hyp_lock();
                     s_vring_init = 1;
                 }
@@ -316,6 +319,7 @@ void virtio_dispatcher(struct s_visor_state *state,
 
                 pte_t desc_pte, avail_pte, used_pte;
                 paddr_t desc_gpa, avail_gpa, used_gpa;
+
                 /* FIXME: qid is actually set by QUEUE_SEL before QUEUE_PFN, 
                  * we just increase init_qid, assuming 0.BLK -> 1.RX -> 2.TX
                  */
@@ -323,36 +327,45 @@ void virtio_dispatcher(struct s_visor_state *state,
                 
                 /* FIXME: Set in virtio_add_queue, hard-code here.
                  * BLK: 0x80, NET: 0x100
+                 * 设置queue的大小
                  */
-                // num用来表示vdev类型
                 if (qid)
                     state->current_vm->vqs[qid]->num = 0x100;
                 else
                     state->current_vm->vqs[qid]->num = 0x80;
 
-                /* Set number of vring for both guest & shadow vring */
+                /* Set number/size of vring for both guest & shadow vring */
                 state->current_vm->vrings[qid]->num = 
                     state->current_vm->vqs[qid]->num;
                 state->current_vm->shadow_vrings[qid]->num = 
                     state->current_vm->vqs[qid]->num;
 
+                // 初始化vring
                 vring_init(state->current_vm->vrings[qid], 
                         state->current_vm->vqs[qid]->num, 
                         (void *)(data << PAGE_SHIFT), PAGE_SIZE);
 
+                // data是guest的vring的物理地址(GPA)
                 desc_gpa = (paddr_t)state->current_vm->vrings[qid]->desc;
                 avail_gpa = (paddr_t)state->current_vm->vrings[qid]->avail;
                 used_gpa = (paddr_t)state->current_vm->vrings[qid]->used;
 
+                printf("[VIRTIO] desc_gpa: %llx, avail_gpa: %llx, used_gpa: %llx\n", 
+                        desc_gpa, avail_gpa, used_gpa);
+
                 /* Translate GPA of guest vring to HPA */
+                // 把guest physical address 转成host physical address
                 desc_pte = translate_stage2_pt(s2ptp, desc_gpa >> PAGE_SHIFT);
                 avail_pte = translate_stage2_pt(s2ptp, avail_gpa >> PAGE_SHIFT);
                 used_pte = translate_stage2_pt(s2ptp, used_gpa >> PAGE_SHIFT);
                 
+                printf("[VIRTIO] desc_pte: %llx, avail_pte: %llx, used_pte: %llx\n", 
+                        desc_pte, avail_pte, used_pte);
+
                 /* Replace GPA of guest vring with HPA,
                  * S-visor can access guest vring due to direct mapping
                  */
-                // 通过mapping，方便S-Visor访问vring (normal)
+                // 这一步就是把gpa后面的12位保留，前面部分换成hpa所属的page frame
                 state->current_vm->vrings[qid]->desc = (void *)(
                         (desc_gpa & 0xfff) | desc_pte.l3_page.pfn << PAGE_SHIFT);
                 state->current_vm->vrings[qid]->avail = (void *)(
@@ -360,27 +373,46 @@ void virtio_dispatcher(struct s_visor_state *state,
                 state->current_vm->vrings[qid]->used = (void *)(
                         (used_gpa & 0xfff) | used_pte.l3_page.pfn << PAGE_SHIFT);
 
+                printf("[VIRTIO] vring: desc: %llx, avail: %llx, used: %llx\n", 
+                        state->current_vm->vrings[qid]->desc, 
+                        state->current_vm->vrings[qid]->avail, 
+                        state->current_vm->vrings[qid]->used);
+
                 /* Allocate shadow vring, then map to QEMU */
                 unsigned int num = state->current_vm->shadow_vrings[qid]->num;
+                // 获取shadow vring所需的内存大小
                 unsigned int size = vring_size(num, PAGE_SIZE);
+                // 从shadow vring的内存池中分配内存
                 void *shadow_vring = shadow_bd_alloc(size, PAGE_SHIFT);
+                printf("[VIRTIO] shadow_vring: address: %llx\n", shadow_vring);
 
+                // 把shadow vring对应memory的值置为0
                 memset(shadow_vring, 0, size);
+                
+                // 初始化shadow vring
                 vring_init(state->current_vm->shadow_vrings[qid], num, 
                         shadow_vring, PAGE_SIZE);
+                // 把current_vm vring的内容copy到shadow vring中
                 memcpy(shadow_vring, state->current_vm->vrings[qid]->desc, size);
-    
+
+                // 判断一下SHAOW_HVN_OFFSET是否和gpa的page frame有重叠
                 if ((desc_gpa >> PAGE_SHIFT) & SHADOW_HVN_OFFSET) {
                     printf("[VIRTIO] wrong hvn offset.\n");
                     hyp_panic();
                 }
+
                 /* The BLK vring has 128 (0x80 -> 8*16) entries, but the NET vring has 256 (0x100 -> 1*16*16) entries */
                 int ret = 0, i = 0;
                 paddr_t pfn = ((vaddr_t)shadow_vring >> PAGE_SHIFT);
                 vaddr_t vfn = (desc_gpa >> PAGE_SHIFT) | SHADOW_HVN_OFFSET;
+                printf("[VIRTIO] pfn: %llx, vfn: %llx\n", pfn, vfn);
+
+                // 对每一页shadow vring page都进行映射
+                // 对vfn和pfn进行映射
                 for (; i < (ROUNDUP(size, PAGE_SIZE) >> PAGE_SHIFT); i++) {
                     ret = map_vfn_to_pfn((s1_ptp_t *)state->current_vm->qemu_s1ptp, 
                             vfn + i, pfn + i);
+                    printf("map_vfn_to_pfn ret: %d\n", ret);
                     if (ret != 1) {
                         printf("[VIRTIO] map vfn to pfn failed.\n");
                         hyp_panic();

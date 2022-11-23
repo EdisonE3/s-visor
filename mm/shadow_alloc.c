@@ -15,8 +15,10 @@
 struct lock shadow_alloc_lock;
 tlsf_t shadow_tlsf = NULL;
 
+// 建立一个tlsf的内存池 (for shadow ring)
 void shadow_bd_init() {
     lock_init(&shadow_alloc_lock);
+    // tlsf: Two-Level Segregated Fit memory allocator
     shadow_tlsf = tlsf_create_with_pool((void *)MEM_BASE, MEM_END - MEM_BASE);
 }
 

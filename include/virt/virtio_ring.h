@@ -159,6 +159,13 @@ struct virtio_queue {
 #define vring_used_event(vr) ((vr)->avail->ring[(vr)->num])
 #define vring_avail_event(vr) (*(__virtio16 *)&(vr)->used->ring[(vr)->num])
 
+/**
+ * vring_init - initialize a vring
+ * @vring: the vring to initialize
+ * @num: the number of elements in the vring
+ * @p: the address of the first descriptor entry in vring
+ * @align: the alignment of the vring
+*/
 static inline void vring_init(struct vring *vr, unsigned int num, void *p,
 			      unsigned long align)
 {
