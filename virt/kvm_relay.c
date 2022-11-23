@@ -243,7 +243,9 @@ void dma_R2T(struct s_visor_vm *current_vm, unsigned int num,
 void copy_free_shadow_dma_buffer(struct s_visor_vm *current_vm, 
         uint16_t *shd_used_idx, uint16_t *shd_flags, uint16_t qid) {
 	unsigned int num = current_vm->shadow_vrings[qid]->num;
+    // 用来描述一段vring
 	struct vring_desc *desc = current_vm->shadow_vrings[qid]->desc;
+    // 正在使用的vring
 	struct vring_used *used = current_vm->shadow_vrings[qid]->used;
 	
     *shd_used_idx = used->idx;
@@ -252,11 +254,13 @@ void copy_free_shadow_dma_buffer(struct s_visor_vm *current_vm,
     /* Indices of handled dma buffers are in used[last_used_idx, used->idx] */
     uint16_t used_idx = current_vm->last_used_ids[qid];
     uint16_t end_idx = *shd_used_idx;
+
     for (; used_idx != end_idx; used_idx++) {
         dma_R2T(current_vm, num, desc, used, used_idx);
     }
 }
 
+// vm destroy的调用
 void update_vring_after_migrate(struct s_visor_vm *kvm_vm,
         uint64_t dst_start_pfn, uint64_t src_start_pfn) {
     paddr_t old_desc_hpa, old_avail_hpa, old_used_hpa;
@@ -299,6 +303,8 @@ void virtio_dispatcher(struct s_visor_state *state,
              */
             case 0x8: 
             case 0x88: {
+                // 初始化shadow s_vring
+                // s_vring还没初始化的时候大概会进入这里
                 if (s_vring_init == 0) {
                     shadow_bd_init();
                     init_big_hyp_lock();
@@ -307,6 +313,7 @@ void virtio_dispatcher(struct s_visor_state *state,
 
                 unsigned long s2pt_mask = ~(~((1UL << 48) - 1) | PAGE_MASK);
                 ptp_t *s2ptp = (ptp_t *)(state->current_vm->saved_s2mmu & s2pt_mask);
+
                 pte_t desc_pte, avail_pte, used_pte;
                 paddr_t desc_gpa, avail_gpa, used_gpa;
                 /* FIXME: qid is actually set by QUEUE_SEL before QUEUE_PFN, 
@@ -317,6 +324,7 @@ void virtio_dispatcher(struct s_visor_state *state,
                 /* FIXME: Set in virtio_add_queue, hard-code here.
                  * BLK: 0x80, NET: 0x100
                  */
+                // num用来表示vdev类型
                 if (qid)
                     state->current_vm->vqs[qid]->num = 0x100;
                 else
@@ -344,6 +352,7 @@ void virtio_dispatcher(struct s_visor_state *state,
                 /* Replace GPA of guest vring with HPA,
                  * S-visor can access guest vring due to direct mapping
                  */
+                // 通过mapping，方便S-Visor访问vring (normal)
                 state->current_vm->vrings[qid]->desc = (void *)(
                         (desc_gpa & 0xfff) | desc_pte.l3_page.pfn << PAGE_SHIFT);
                 state->current_vm->vrings[qid]->avail = (void *)(
@@ -365,7 +374,7 @@ void virtio_dispatcher(struct s_visor_state *state,
                     printf("[VIRTIO] wrong hvn offset.\n");
                     hyp_panic();
                 }
-                /* The BLK vring has 128 entries, but the NET vring has 256 entries */
+                /* The BLK vring has 128 (0x80 -> 8*16) entries, but the NET vring has 256 (0x100 -> 1*16*16) entries */
                 int ret = 0, i = 0;
                 paddr_t pfn = ((vaddr_t)shadow_vring >> PAGE_SHIFT);
                 vaddr_t vfn = (desc_gpa >> PAGE_SHIFT) | SHADOW_HVN_OFFSET;
@@ -380,6 +389,29 @@ void virtio_dispatcher(struct s_visor_state *state,
                 }
 
                 state->current_vm->init_qid++;
+
+                // print information of vring and shadow_vring
+                printf("[VIRTIO] qid: %u\n", qid);
+
+                printf("[VIRTIO VA] desc: %p, avail: %p, used: %p\n", 
+                        state->current_vm->vrings[qid]->desc, 
+                        state->current_vm->vrings[qid]->avail, 
+                        state->current_vm->vrings[qid]->used);
+                printf("[VIRTIO PA] desc: %p, avail: %p, used: %p\n", 
+                        virt_to_phys(state->current_vm->vrings[qid]->desc), 
+                        virt_to_phys(state->current_vm->vrings[qid]->avail), 
+                        virt_to_phys(state->current_vm->vrings[qid]->used));
+                        
+                printf("[VIRTIO] shadow desc: %p, shadow avail: %p, shadow used: %p\n",
+                        state->current_vm->shadow_vrings[qid]->desc,
+                        state->current_vm->shadow_vrings[qid]->avail,
+                        state->current_vm->shadow_vrings[qid]->used);
+
+                printf("[VIRTIO] shadow desc: %p, shadow avail: %p, shadow used: %p\n",
+                        virt_to_phys(state->current_vm->shadow_vrings[qid]->desc),
+                        virt_to_phys(state->current_vm->shadow_vrings[qid]->avail),
+                        virt_to_phys(state->current_vm->shadow_vrings[qid]->used));
+
                 break;
             }
             case VIRTIO_PCI_QUEUE_NUM: {
@@ -602,6 +634,7 @@ void sync_net_tx_R2T(struct s_visor_vm *current_vm) {
  * If guest VM receives SPI [ID == 0x51], sync shadow vring before eret
  */
 void sync_shadow_vring_R2T(struct s_visor_vm *current_vm) {
+    // registers related to GIC
     unsigned long ich_lr0_el2 = read_sysreg_s(SYS_ICH_LR0_EL2);
     unsigned long ich_lr1_el2 = read_sysreg_s(SYS_ICH_LR1_EL2);
     unsigned long ich_lr2_el2 = read_sysreg_s(SYS_ICH_LR2_EL2);
@@ -613,12 +646,15 @@ void sync_shadow_vring_R2T(struct s_visor_vm *current_vm) {
     net_rx = rx_need_sync(ich_lr0_el2, ich_lr1_el2, ich_lr2_el2, ich_lr3_el2);
     net_tx = tx_need_sync(ich_lr0_el2, ich_lr1_el2, ich_lr2_el2, ich_lr3_el2);
 
+    // 网络发送
     if (net_tx)
         sync_net_tx_R2T(current_vm);
     
+    // 网络接收
     if (net_rx)
         sync_net_rx_R2T(current_vm);
 
+    // blk
     if (blk)
         sync_blk_R2T(current_vm);
 }

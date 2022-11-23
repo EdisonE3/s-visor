@@ -324,7 +324,7 @@ static void sync_vttbr_to_vsttbr(struct s_visor_vm *target_vm, uint64_t vcpu_id)
         s2mmu_map_page(target_vm->s2mmu, fault_ipn << PAGE_SHIFT, 
                 target_pte.l3_page.pfn << PAGE_SHIFT, 1, 
                 MMU_ATTR_PAGE_RWE);
-        check_kernel_integrity(target_vm, fault_ipn, target_pte.l3_page.pfn << PAGE_SHIFT);
+        // check_kernel_integrity(target_vm, fault_ipn, target_pte.l3_page.pfn << PAGE_SHIFT);
 
 
         /* Security check using PMT */
@@ -361,8 +361,9 @@ static void sync_vttbr_to_vsttbr(struct s_visor_vm *target_vm, uint64_t vcpu_id)
 }
 
 /* forward smc request to the corresponding VM */
+static unsigned long f_count = 1;
 int forward_smc_to_vm() {
-    printf("forward_smc_to_vm\n");
+    // printf("forward_smc_to_vm [%lu]\n", f_count);
     struct s_visor_vm *target_vm = NULL;
     struct s_visor_vcpu *target_vcpu = NULL; 
     struct s_visor_state *state = NULL;
@@ -404,8 +405,15 @@ int forward_smc_to_vm() {
     sync_shadow_vring_R2T(target_vm);
 
     check_vm_state(target_vcpu);
+    if (f_count % 1000 == 0) 
+    {
+        printf("enter_guest [%lu]\n", f_count);
+    }
+    
+    f_count = f_count + 1;
     int ret = enter_guest();
     expose_vm_state(target_vcpu, ret);
+    // printf("exit reason [%d]\n", ret);
 
     if (ret == S_VISOR_VMEXIT_SYNC)
         decode_kvm_vm_exit(&global_s_visor_states[core_id], vcpu_id);
@@ -426,5 +434,6 @@ int forward_smc_to_vm() {
     state->current_vm->vm_state = VS_READY;
     state->current_vm->vcpus[vcpu_id]->vcpu_state = VCPU_READY;
 
+    // printf("back to kvm [%d]\n", ret);
     return ret;
 }

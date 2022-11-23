@@ -104,6 +104,7 @@ struct vring_used {
 };
 
 struct vring {
+	// 和vring的大小有关
 	unsigned int num;
 
 	struct vring_desc *desc;
@@ -114,6 +115,7 @@ struct vring {
 };
 
 struct virtio_queue {
+	// 和vring的大小有关
     uint16_t num;
     int enabled;
     uint32_t desc[2];
