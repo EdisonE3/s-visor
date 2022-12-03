@@ -142,6 +142,10 @@ static void destroy_kvm_vm(struct s_visor_vm *vm, int vcpu_num) {
     }
 }
 
+static void rmm_smc_handler(kvm_smc_req_t* kvm_smc_req) {
+    // TODO: implement this
+}
+
 void kvm_shared_memory_register() {
     uint64_t shared_register_pages_local;
     if (!shared_register_pages) {
@@ -281,7 +285,16 @@ void kvm_shared_memory_handle() {
             printf("region top pfn are 0x%llx.\n", kvm_smc_req->top_pfn);
             break;
         }
-        default:
-            BUG("no such shared memory request\n");
+        default:{
+            if (kvm_smc_req->req_type <= SMC_RMM_RTT_SET_RIPAS 
+                    && kvm_smc_req->req_type >= SMC_RMM_VERSION) {
+                printf("RMM SMC request type %d\n", kvm_smc_req->req_type);
+                rmm_smc_handler(kvm_smc_req);
+            }
+            else {
+                printf("Unknown SMC request type %d\n", kvm_smc_req->req_type);
+                hyp_panic();
+            }
+        }
     }
 }
