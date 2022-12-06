@@ -487,6 +487,7 @@ uint16_t update_shadow_desc_avail_step1(struct s_visor_vm *current_vm,
     *ori_flags = original_avail->flags;
 
     /* BLK: 0x80 - 1, NET: 0x100 - 1 */
+    /* determine the length of vring */
     uint16_t q_mask = (qid == 0) ? 0x7f : 0xff;
 
     uint16_t avail_idx = current_vm->last_avail_ids[qid];
@@ -497,7 +498,7 @@ uint16_t update_shadow_desc_avail_step1(struct s_visor_vm *current_vm,
         hyp_panic();
     }
 
-    // copy vring to normal world
+    // copy vring to normal world [avail_idx, end_idx)
     for (; avail_idx != end_idx; avail_idx++) {
         uint16_t header_idx = original_avail_ring[avail_idx % num];
         uint16_t desc_idx = header_idx;
