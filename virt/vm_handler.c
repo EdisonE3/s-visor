@@ -160,7 +160,7 @@ void kvm_shared_memory_register() {
     }
 }
 
-void kvm_shared_memory_handle() {
+void kvm_shared_memory_handle(uint64_t x1, uint64_t x2, uint64_t x3) {
     uint64_t core_id = __get_core_pos();
     kvm_smc_req_t* kvm_smc_req = get_smc_req_region(core_id);
     switch (kvm_smc_req->req_type) {

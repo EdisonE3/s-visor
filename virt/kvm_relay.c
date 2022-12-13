@@ -602,8 +602,11 @@ static inline int blk_need_sync(unsigned long lr0, unsigned long lr1,
     unsigned long mask = 0xffff;
     unsigned long virq = 0x24;
     if ((lr0 & mask) == virq || (lr1 & mask) == virq ||
-            (lr2 & mask) == virq || (lr3 & mask) == virq)
+        (lr2 & mask) == virq || (lr3 & mask) == virq)
+    {
+        printf("virtio-blk %lx\n", virq);
         return 1;
+    }
     return 0;
 }
 
