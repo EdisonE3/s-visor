@@ -165,7 +165,7 @@ void dma_R2T(struct s_visor_vm *current_vm, unsigned int num,
         unsigned long s2pt_mask = ~(~((1UL << 48) - 1) | PAGE_MASK);
         ptp_t *s2ptp = (ptp_t *)(read_vsttbr() & s2pt_mask);
         if ((dma_gpa >> PAGE_SHIFT) & SHADOW_HVN_OFFSET) {
-            printf("[DMA R2T] wrong hvn offset.\n");
+            printf("[DMA R2T] wrong hvn offset. dma_gpa: %lx\n", dma_gpa);
             hyp_panic();
         }
 

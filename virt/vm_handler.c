@@ -293,7 +293,8 @@ static void rmm_smc_handler(kvm_smc_req_t *kvm_smc_req,
         break;
     }
     case SMC_RMM_REALM_DESTROY:{
-        printf("smc_rmm_realm_destroy\n");
+        uint32_t vm_id = kvm_smc_req->sec_vm_id;
+        printf("smc_rmm_realm_destroy: vm_id: %u\n", vm_id);
         break;
     }
     case SMC_RMM_REC_CREATE:{
@@ -302,7 +303,9 @@ static void rmm_smc_handler(kvm_smc_req_t *kvm_smc_req,
         break;
     }
     case SMC_RMM_REC_DESTROY:{
-        printf("smc_rmm_rec_destroy\n");
+        uint32_t vm_id = kvm_smc_req->sec_vm_id;
+        uint32_t vcpu_id = kvm_smc_req->vcpu_id;
+        printf("smc_rmm_rec_destroy: vm_id: %u, vcpu_id: %u\n", vm_id, vcpu_id);
         break;
     }
     default:
