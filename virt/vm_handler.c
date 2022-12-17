@@ -156,25 +156,88 @@ static void destroy_kvm_vm(struct s_visor_vm *vm, int vcpu_num)
     }
 }
 
+
+static int only_init_empty_vm(struct s_visor_vm *vm, int vm_id, char *vm_name, int vcpu_num)
+{
+    int i = 0;
+    if (vm == NULL)
+    {
+        return -EINVAL;
+    }
+    memset(vm, 0, sizeof(struct s_visor_vm));
+
+    vm->vm_id = vm_id;
+    vm->vm_name = vm_name;
+
+    vm->nr_vcpu = vcpu_num;
+
+    list_init(&vm->cache_list);
+
+    vm->init_qid = 0;
+    for (i = 0; i < 3; i++)
+    {
+        struct virtio_queue *vq =
+            (struct virtio_queue *)bd_alloc(sizeof(struct virtio_queue), 0);
+        memset(vq, 0, sizeof(struct virtio_queue));
+        vm->vqs[i] = vq;
+
+        struct vring *vring = (struct vring *)bd_alloc(sizeof(struct vring), 0);
+        memset(vring, 0, sizeof(struct vring));
+        vm->vrings[i] = vring;
+
+        struct vring *s_vring = (struct vring *)bd_alloc(sizeof(struct vring), 0);
+        memset(s_vring, 0, sizeof(struct vring));
+        vm->shadow_vrings[i] = s_vring;
+
+        vm->last_avail_ids[i] = 0;
+        vm->last_used_ids[i] = 0;
+    }
+
+    vm->vm_state = VS_READY;
+    vm->vm_type = VT_KVM;
+
+    vm->migrated = 0;
+
+    return 0;
+}
+
+static int only_init_empty_vcpu(struct s_visor_vm *vm, int vcpu_id){
+    struct s_visor_vcpu *vcpu = (struct s_visor_vcpu *)bd_alloc(sizeof(*vcpu), 0);
+    memset(vcpu, 0, sizeof(struct s_visor_vcpu));
+    vcpu->vm = vm;
+    vcpu->vcpu_id = vcpu_id;
+
+    vcpu->vcpu_state = VCPU_READY;
+
+    vcpu->first_entry = true;
+
+    vm->vcpus[vcpu_id] = vcpu;
+}
+
 // static void smc_realm_activate(unsigned long rd_addr)
 // {
 //     // TODO: implement this
 //     // change the state of specific realm to active
 // }
 
-// static void smc_realm_create(unsigned long rd_addr,
-//                              unsigned long realm_params_addr)
-// {
-//     // TODO: modify it, make it pass test
-//     struct s_visor_vm *kvm_vm =
-//         (struct s_visor_vm *)bd_alloc(sizeof(*kvm_vm), 0);
-//     uint64_t nr_vcpu = kvm_smc_req->boot.nr_vcpu;
-//     printf("init vm with vcpu %llu\n", nr_vcpu);
-//     init_empty_vm(kvm_vm, kvm_smc_req->sec_vm_id, "kvm_vm", nr_vcpu);
-//     kvm_vm->s2mmu = create_stage2_mmu();
-//     /* Get TTBR0 of QEMU */
-//     kvm_vm->qemu_s1ptp = kvm_smc_req->boot.qemu_s1ptp & (~0xFFFUL);
-// }
+static void smc_realm_create(kvm_smc_req_t* kvm_smc_req, 
+                             unsigned long rd_addr,
+                             unsigned long realm_params_addr)
+{
+    // TODO: modify it, make it pass test
+    printf("Boot realm vm with id %d\n", kvm_smc_req->sec_vm_id);
+    struct s_visor_vm *kvm_vm =
+        (struct s_visor_vm *)bd_alloc(sizeof(*kvm_vm), 0);
+    uint64_t nr_vcpu = kvm_smc_req->boot.nr_vcpu;
+    printf("init vm with vcpu %llu\n", nr_vcpu);
+    only_init_empty_vm(kvm_vm, kvm_smc_req->sec_vm_id, "kvm_vm", nr_vcpu);
+    kvm_vm->s2mmu = create_stage2_mmu();
+    /* Get TTBR0 of QEMU */
+    kvm_vm->qemu_s1ptp = kvm_smc_req->boot.qemu_s1ptp & (~0xFFFUL);
+    
+    s_visor_vm_enqueue(kvm_vm);
+    printf("realm 0x%p created with id %d\n", kvm_vm, kvm_vm->vm_id);
+}
 
 // static void smc_realm_destroy(unsigned long rd_addr)
 // {
@@ -193,22 +256,18 @@ static void destroy_kvm_vm(struct s_visor_vm *vm, int vcpu_num)
 //     bd_free(kvm_vm);
 // }
 
-// static void smc_rec_create(unsigned long rec_addr,
-// 			     unsigned long rd_addr,
-// 			     unsigned long rec_params_addr)
-// {
-//     // TODO: modify it, make it pass test
-//     struct s_visor_vcpu *vcpu = (struct s_visor_vcpu *)bd_alloc(sizeof(*vcpu), 0);
-//     memset(vcpu, 0, sizeof(struct s_visor_vcpu));
-//     vcpu->vm = vm;
-//     vcpu->vcpu_id = i;
-
-//     vcpu->vcpu_state = VCPU_READY;
-
-//     vcpu->first_entry = true;
-
-//     vm->vcpus[i] = vcpu;
-// }
+static void smc_rec_create(kvm_smc_req_t *kvm_smc_req,
+                           unsigned long rec_addr,
+                           unsigned long rd_addr,
+                           unsigned long rec_params_addr)
+{
+    // TODO: modify it, make it pass test
+    struct s_visor_vm *kvm_vm =
+            get_vm_by_id(kvm_smc_req->sec_vm_id);
+    uint32_t vcpu_id = kvm_smc_req->vcpu_id;
+    only_init_empty_vcpu(kvm_vm, vcpu_id);
+    printf("create vcpu with id %d\n", kvm_smc_req->vcpu_id);
+}
 
 // unsigned long smc_rec_destroy(unsigned long rec_addr)
 // {
@@ -216,7 +275,8 @@ static void destroy_kvm_vm(struct s_visor_vm *vm, int vcpu_num)
 //     bd_free(vm->vcpus[i]);
 // }
 
-static void rmm_smc_handler(uint64_t smc_id, uint64_t x1,
+static void rmm_smc_handler(kvm_smc_req_t *kvm_smc_req,
+                            uint64_t smc_id, uint64_t x1,
                             uint64_t x2, uint64_t x3,
                             uint64_t x4)
 {
@@ -228,6 +288,7 @@ static void rmm_smc_handler(uint64_t smc_id, uint64_t x1,
         break;
     }
     case SMC_RMM_REALM_CREATE:{
+        smc_realm_create(kvm_smc_req, x1, x2);
         printf("smc_rmm_realm_create\n");
         break;
     }
@@ -236,6 +297,7 @@ static void rmm_smc_handler(uint64_t smc_id, uint64_t x1,
         break;
     }
     case SMC_RMM_REC_CREATE:{
+        smc_rec_create(kvm_smc_req, x1, x2, x3);
         printf("smc_rmm_rec_create\n");
         break;
     }
@@ -342,7 +404,7 @@ unsigned long kvm_shared_memory_handle(uint64_t smc_id, uint64_t x1,
         if (smc_id <= SMC_RMM_RTT_SET_RIPAS && smc_id >= SMC_RMM_VERSION)
         {
             // printf("RMM SMC ID %d\n", smc_id);
-            rmm_smc_handler(smc_id, x1, x2, x3, x4);
+            rmm_smc_handler(kvm_smc_req, smc_id, x1, x2, x3, x4);
             break;
         }
 

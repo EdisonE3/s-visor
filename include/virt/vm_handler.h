@@ -77,6 +77,8 @@ typedef struct {
     };
 } kvm_smc_req_t;
 
+
+
 #define S_VISOR_MAX_SUPPORTED_PHYSICAL_CORE_NUM 4
 
 void *get_s_visor_shared_buf(void);
