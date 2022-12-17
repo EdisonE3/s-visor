@@ -146,6 +146,66 @@ static void rmm_smc_handler(kvm_smc_req_t* kvm_smc_req) {
     // TODO: implement this
 }
 
+static void smc_realm_activate(unsigned long rd_addr)
+{
+    // TODO: implement this
+    // change the state of specific realm to active
+}
+
+static void smc_realm_create(unsigned long rd_addr,
+                             unsigned long realm_params_addr)
+{
+    // TODO: modify it, make it pass test
+    struct s_visor_vm *kvm_vm =
+        (struct s_visor_vm *)bd_alloc(sizeof(*kvm_vm), 0);
+    uint64_t nr_vcpu = kvm_smc_req->boot.nr_vcpu;
+    printf("init vm with vcpu %llu\n", nr_vcpu);
+    init_empty_vm(kvm_vm, kvm_smc_req->sec_vm_id, "kvm_vm", nr_vcpu);
+    kvm_vm->s2mmu = create_stage2_mmu();
+    /* Get TTBR0 of QEMU */
+    kvm_vm->qemu_s1ptp = kvm_smc_req->boot.qemu_s1ptp & (~0xFFFUL);
+}
+
+static void smc_realm_destroy(unsigned long rd_addr)
+{
+    // TODO: modify it, make it pass test
+    struct s_visor_vm *kvm_vm = get_vm_by_id(kvm_smc_req->sec_vm_id);
+
+    /* Update PMT checker info after shutdown */
+    rm_all_caches_from_vm(1, kvm_vm);
+    unsigned long top_pfn = get_top_pfn_of_all(1);
+    update_top_pfn(1, top_pfn);
+
+    s_visor_vm_dequeue(kvm_vm);
+    printf("kvm %p dequeued with id %d\n", kvm_vm, kvm_vm->vm_id);
+    destroy_stage2_mmu(kvm_vm->s2mmu);
+    destroy_kvm_vm(kvm_vm, PHYSICAL_CORE_NUM);
+    bd_free(kvm_vm);
+}
+
+static void smc_rec_create(unsigned long rec_addr,
+			     unsigned long rd_addr,
+			     unsigned long rec_params_addr)
+{
+    // TODO: modify it, make it pass test
+    struct s_visor_vcpu *vcpu = (struct s_visor_vcpu *)bd_alloc(sizeof(*vcpu), 0);
+    memset(vcpu, 0, sizeof(struct s_visor_vcpu));
+    vcpu->vm = vm;
+    vcpu->vcpu_id = i;
+
+    vcpu->vcpu_state = VCPU_READY;
+
+    vcpu->first_entry = true;
+
+    vm->vcpus[i] = vcpu;
+}
+
+unsigned long smc_rec_destroy(unsigned long rec_addr)
+{
+    // TODO: modify it, make it pass test
+    bd_free(vm->vcpus[i]);
+}
+
 void kvm_shared_memory_register() {
     uint64_t shared_register_pages_local;
     if (!shared_register_pages) {
@@ -160,9 +220,10 @@ void kvm_shared_memory_register() {
     }
 }
 
-void kvm_shared_memory_handle(uint64_t x1, uint64_t x2, uint64_t x3) {
+void kvm_shared_memory_handle(uint64_t x0, uint64_t x1, uint64_t x2, uint64_t x3) {
     uint64_t core_id = __get_core_pos();
     kvm_smc_req_t* kvm_smc_req = get_smc_req_region(core_id);
+    printf("%s: %d core_id: %d, x0: %lx, x1: %lx, x2: %lx, x3: %lx\n", __func__, __LINE__, core_id, x0, x1, x2, x3);
     switch (kvm_smc_req->req_type) {
         case REQ_KVM_TO_S_VISOR_REMAP_IPA: {
             struct s_visor_vm *kvm_vm =
@@ -228,14 +289,17 @@ void kvm_shared_memory_handle(uint64_t x1, uint64_t x2, uint64_t x3) {
             struct s_visor_vm *kvm_vm =
                 (struct s_visor_vm *)bd_alloc(sizeof(*kvm_vm), 0);
             uint64_t nr_vcpu = kvm_smc_req->boot.nr_vcpu;
+            
             printf("init vm with vcpu %llu\n", nr_vcpu);
             init_empty_vm(kvm_vm, kvm_smc_req->sec_vm_id, "kvm_vm", nr_vcpu);
+            
             kvm_vm->s2mmu = create_stage2_mmu();
             /* Get TTBR0 of QEMU */
             kvm_vm->qemu_s1ptp = kvm_smc_req->boot.qemu_s1ptp & (~0xFFFUL);
             if (kvm_vm->qemu_s1ptp >> 48) {
                 BUG("qemu s1ptp align failed\n");
             }
+            
             s_visor_vm_enqueue(kvm_vm);
             printf("kvm 0x%p created with id %d\n", kvm_vm, kvm_vm->vm_id);
             break;
@@ -250,8 +314,10 @@ void kvm_shared_memory_handle(uint64_t x1, uint64_t x2, uint64_t x3) {
 
             s_visor_vm_dequeue(kvm_vm);
             printf("kvm %p dequeued with id %d\n", kvm_vm, kvm_vm->vm_id);
+            
             destroy_stage2_mmu(kvm_vm->s2mmu);
             destroy_kvm_vm(kvm_vm, PHYSICAL_CORE_NUM);
+            
             bd_free(kvm_vm);
 
             break;
