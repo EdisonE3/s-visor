@@ -201,17 +201,26 @@ static int only_init_empty_vm(struct s_visor_vm *vm, int vm_id, char *vm_name, i
     return 0;
 }
 
-static int only_init_empty_vcpu(struct s_visor_vm *vm, int vcpu_id){
-    struct s_visor_vcpu *vcpu = (struct s_visor_vcpu *)bd_alloc(sizeof(*vcpu), 0);
-    memset(vcpu, 0, sizeof(struct s_visor_vcpu));
-    vcpu->vm = vm;
-    vcpu->vcpu_id = vcpu_id;
+static int only_init_empty_vcpu(struct s_visor_vm *vm){
+    unsigned int nr_vcpu = vm->nr_vcpu;
+    unsigned int i;
+    for (i = 0; i < nr_vcpu; i++)
+    {
+        struct s_visor_vcpu *vcpu = (struct s_visor_vcpu *)bd_alloc(sizeof(*vcpu), 0);
+        memset(vcpu, 0, sizeof(struct s_visor_vcpu));
+        vcpu->vm = vm;
+        vcpu->vcpu_id = i;
 
-    vcpu->vcpu_state = VCPU_READY;
+        vcpu->vcpu_state = VCPU_READY;
 
-    vcpu->first_entry = true;
+        vcpu->first_entry = true;
 
-    vm->vcpus[vcpu_id] = vcpu;
+        vm->vcpus[i] = vcpu;
+
+        printf("create vcpu with id %d\n", i);
+    }
+
+    return 0;
 }
 
 // static void smc_realm_activate(unsigned long rd_addr)
@@ -264,9 +273,7 @@ static void smc_rec_create(kvm_smc_req_t *kvm_smc_req,
     // TODO: modify it, make it pass test
     struct s_visor_vm *kvm_vm =
             get_vm_by_id(kvm_smc_req->sec_vm_id);
-    uint32_t vcpu_id = kvm_smc_req->vcpu_id;
-    only_init_empty_vcpu(kvm_vm, vcpu_id);
-    printf("create vcpu with id %d\n", kvm_smc_req->vcpu_id);
+    only_init_empty_vcpu(kvm_vm);
 }
 
 // unsigned long smc_rec_destroy(unsigned long rec_addr)
