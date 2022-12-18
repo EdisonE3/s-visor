@@ -193,11 +193,12 @@ static int only_init_empty_vm(struct s_visor_vm *vm, int vm_id, char *vm_name, i
         vm->last_used_ids[i] = 0;
     }
 
-    vm->vm_state = VS_READY;
+    vm->vm_state = VS_CREATE;
     vm->vm_type = VT_KVM;
 
     vm->migrated = 0;
 
+    printf("vm: %d state: %d\n", vm->vm_id, vm->vm_state);
     return 0;
 }
 
@@ -220,14 +221,19 @@ static int only_init_empty_vcpu(struct s_visor_vm *vm){
         printf("create vcpu with id %d\n", i);
     }
 
+    vm->vm_state = VS_INIT;
+    printf("vm: %d state: %d\n", vm->vm_id, vm->vm_state);
     return 0;
 }
 
-// static void smc_realm_activate(unsigned long rd_addr)
-// {
-//     // TODO: implement this
-//     // change the state of specific realm to active
-// }
+static void smc_realm_activate(kvm_smc_req_t* kvm_smc_req, unsigned long rd_addr)
+{
+    // change the state of specific realm to active
+    struct s_visor_vm *kvm_vm =
+            get_vm_by_id(kvm_smc_req->sec_vm_id);
+    kvm_vm->vm_state = VS_READY;
+    printf("vm: %d state: %d\n", kvm_vm->vm_id, kvm_vm->vm_state);
+}
 
 static void smc_realm_create(kvm_smc_req_t* kvm_smc_req, 
                              unsigned long rd_addr,
@@ -291,6 +297,7 @@ static void rmm_smc_handler(kvm_smc_req_t *kvm_smc_req,
     switch (smc_id)
     {
     case SMC_RMM_REALM_ACTIVATE:{
+        smc_realm_activate(kvm_smc_req, x1);
         printf("smc_rmm_realm_activate\n");
         break;
     }
