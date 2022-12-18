@@ -429,13 +429,6 @@ unsigned long kvm_shared_memory_handle(uint64_t smc_id, uint64_t x1,
     }
     case REQ_KVM_TO_S_VISOR_BOOT:
     {
-        if (smc_id <= SMC_RMM_RTT_SET_RIPAS && smc_id >= SMC_RMM_VERSION)
-        {
-            // printf("RMM SMC ID %d\n", smc_id);
-            rmm_smc_handler(kvm_smc_req, smc_id, x1, x2, x3, x4);
-            break;
-        }
-
         printf("Boot kvm with id %d\n", kvm_smc_req->sec_vm_id);
         struct s_visor_vm *kvm_vm =
             (struct s_visor_vm *)bd_alloc(sizeof(*kvm_vm), 0);
@@ -509,6 +502,17 @@ unsigned long kvm_shared_memory_handle(uint64_t smc_id, uint64_t x1,
         }
         unlock(&tzc_lock);
         printf("region top pfn are 0x%llx.\n", kvm_smc_req->top_pfn);
+        break;
+    }
+    case REQ_KVM_TO_RMM_HANDLER:
+    {
+        if (smc_id <= SMC_RMM_RTT_SET_RIPAS && smc_id >= SMC_RMM_VERSION)
+        {
+            printf("RMM handler smc_id: %u\n", smc_id);
+            rmm_smc_handler(kvm_smc_req, smc_id, x1, x2, x3, x4);
+        } else{
+            printf("[error] RMM handler smc_id: %u out of bound\n", smc_id);
+        }
         break;
     }
     default:
