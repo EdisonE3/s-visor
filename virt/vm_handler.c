@@ -204,7 +204,7 @@ static int only_init_empty_vm(struct s_visor_vm *vm, int vm_id, char *vm_name, i
 
 static int only_init_empty_vcpu(struct s_visor_vm *vm){
     unsigned int nr_vcpu = vm->nr_vcpu;
-    unsigned int i;
+    int i;
     for (i = 0; i < nr_vcpu; i++)
     {
         struct s_visor_vcpu *vcpu = (struct s_visor_vcpu *)bd_alloc(sizeof(*vcpu), 0);
@@ -239,7 +239,6 @@ static void smc_realm_create(kvm_smc_req_t* kvm_smc_req,
                              unsigned long rd_addr,
                              unsigned long realm_params_addr)
 {
-    // TODO: modify it, make it pass test
     printf("Boot realm vm with id %d\n", kvm_smc_req->sec_vm_id);
     struct s_visor_vm *kvm_vm =
         (struct s_visor_vm *)bd_alloc(sizeof(*kvm_vm), 0);
@@ -254,39 +253,50 @@ static void smc_realm_create(kvm_smc_req_t* kvm_smc_req,
     printf("realm 0x%p created with id %d\n", kvm_vm, kvm_vm->vm_id);
 }
 
-// static void smc_realm_destroy(unsigned long rd_addr)
-// {
-//     // TODO: modify it, make it pass test
-//     struct s_visor_vm *kvm_vm = get_vm_by_id(kvm_smc_req->sec_vm_id);
+static void smc_realm_destroy(kvm_smc_req_t *kvm_smc_req,
+                              unsigned long rd_addr)
+{
+    int i = 0;
+    struct s_visor_vm *kvm_vm = get_vm_by_id(kvm_smc_req->sec_vm_id);
 
-//     /* Update PMT checker info after shutdown */
-//     rm_all_caches_from_vm(1, kvm_vm);
-//     unsigned long top_pfn = get_top_pfn_of_all(1);
-//     update_top_pfn(1, top_pfn);
+    /* Update PMT checker info after shutdown */
+    rm_all_caches_from_vm(1, kvm_vm);
+    unsigned long top_pfn = get_top_pfn_of_all(1);
+    update_top_pfn(1, top_pfn);
 
-//     s_visor_vm_dequeue(kvm_vm);
-//     printf("kvm %p dequeued with id %d\n", kvm_vm, kvm_vm->vm_id);
-//     destroy_stage2_mmu(kvm_vm->s2mmu);
-//     destroy_kvm_vm(kvm_vm, PHYSICAL_CORE_NUM);
-//     bd_free(kvm_vm);
-// }
+    s_visor_vm_dequeue(kvm_vm);
+    printf("kvm %p dequeued with id %d\n", kvm_vm, kvm_vm->vm_id);
+    destroy_stage2_mmu(kvm_vm->s2mmu);
+    for (i = 0; i < 3; i++)
+    {
+        bd_free(kvm_vm->vqs[i]);
+        bd_free(kvm_vm->vrings[i]);
+        bd_free(kvm_vm->shadow_vrings[i]);
+    }
+    bd_free(kvm_vm);
+}
 
 static void smc_rec_create(kvm_smc_req_t *kvm_smc_req,
                            unsigned long rec_addr,
                            unsigned long rd_addr,
                            unsigned long rec_params_addr)
 {
-    // TODO: modify it, make it pass test
     struct s_visor_vm *kvm_vm =
             get_vm_by_id(kvm_smc_req->sec_vm_id);
     only_init_empty_vcpu(kvm_vm);
 }
 
-// unsigned long smc_rec_destroy(unsigned long rec_addr)
-// {
-//     // TODO: modify it, make it pass test
-//     bd_free(vm->vcpus[i]);
-// }
+unsigned long smc_rec_destroy(kvm_smc_req_t *kvm_smc_req,
+                              unsigned long rec_addr)
+{
+    struct s_visor_vm *kvm_vm =
+            get_vm_by_id(kvm_smc_req->sec_vm_id);
+    int i;
+    for (i = 0; i < PHYSICAL_CORE_NUM; i++)
+    {
+        bd_free(kvm_vm->vcpus[i]);
+    }
+}
 
 static void rmm_smc_handler(kvm_smc_req_t *kvm_smc_req,
                             uint64_t smc_id, uint64_t x1,
@@ -307,6 +317,7 @@ static void rmm_smc_handler(kvm_smc_req_t *kvm_smc_req,
         break;
     }
     case SMC_RMM_REALM_DESTROY:{
+        smc_realm_destroy(kvm_smc_req, x1);
         uint32_t vm_id = kvm_smc_req->sec_vm_id;
         printf("smc_rmm_realm_destroy: vm_id: %u\n", vm_id);
         break;
@@ -317,9 +328,9 @@ static void rmm_smc_handler(kvm_smc_req_t *kvm_smc_req,
         break;
     }
     case SMC_RMM_REC_DESTROY:{
+        smc_rec_destroy(kvm_smc_req, x1);
         uint32_t vm_id = kvm_smc_req->sec_vm_id;
-        uint32_t vcpu_id = kvm_smc_req->vcpu_id;
-        printf("smc_rmm_rec_destroy: vm_id: %u, vcpu_id: %u\n", vm_id, vcpu_id);
+        printf("smc_rmm_rec_destroy: vm_id: %u\n", vm_id);
         break;
     }
     default:
