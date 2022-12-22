@@ -202,24 +202,19 @@ static int only_init_empty_vm(struct s_visor_vm *vm, int vm_id, char *vm_name, i
     return 0;
 }
 
-static int only_init_empty_vcpu(struct s_visor_vm *vm){
-    unsigned int nr_vcpu = vm->nr_vcpu;
-    int i;
-    for (i = 0; i < nr_vcpu; i++)
-    {
-        struct s_visor_vcpu *vcpu = (struct s_visor_vcpu *)bd_alloc(sizeof(*vcpu), 0);
-        memset(vcpu, 0, sizeof(struct s_visor_vcpu));
-        vcpu->vm = vm;
-        vcpu->vcpu_id = i;
+static int only_init_empty_vcpu(struct s_visor_vm *vm, int vcpu_id){
+    struct s_visor_vcpu *vcpu = (struct s_visor_vcpu *)bd_alloc(sizeof(*vcpu), 0);
+    memset(vcpu, 0, sizeof(struct s_visor_vcpu));
+    vcpu->vm = vm;
+    vcpu->vcpu_id = vcpu_id;
 
-        vcpu->vcpu_state = VCPU_READY;
+    vcpu->vcpu_state = VCPU_READY;
 
-        vcpu->first_entry = true;
+    vcpu->first_entry = true;
 
-        vm->vcpus[i] = vcpu;
+    vm->vcpus[vcpu_id] = vcpu;
 
-        printf("create vcpu with id %d\n", i);
-    }
+    printf("create vcpu with id %d\n", vcpu_id);
 
     vm->vm_state = VS_INIT;
     printf("vm: %d state: %d\n", vm->vm_id, vm->vm_state);
@@ -283,7 +278,8 @@ static void smc_rec_create(kvm_smc_req_t *kvm_smc_req,
 {
     struct s_visor_vm *kvm_vm =
             get_vm_by_id(kvm_smc_req->sec_vm_id);
-    only_init_empty_vcpu(kvm_vm);
+    int vcpu_id = kvm_smc_req->vcpu_id;
+    only_init_empty_vcpu(kvm_vm, vcpu_id);
 }
 
 unsigned long smc_rec_destroy(kvm_smc_req_t *kvm_smc_req,
@@ -291,11 +287,9 @@ unsigned long smc_rec_destroy(kvm_smc_req_t *kvm_smc_req,
 {
     struct s_visor_vm *kvm_vm =
             get_vm_by_id(kvm_smc_req->sec_vm_id);
-    int i;
-    for (i = 0; i < PHYSICAL_CORE_NUM; i++)
-    {
-        bd_free(kvm_vm->vcpus[i]);
-    }
+    int vcpu_id = kvm_smc_req->vcpu_id;
+    bd_free(kvm_vm->vcpus[vcpu_id]);
+    printf("free vcpu: %d\n", vcpu_id);
 }
 
 static void rmm_smc_handler(kvm_smc_req_t *kvm_smc_req,
